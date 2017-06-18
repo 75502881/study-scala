@@ -1,14 +1,12 @@
 package study.trex.day
 
-
-object Test2 {
-  
-    def main(args: Array[String]) {
-      
-       var man =new Man("test man")
-
-    }
+class Man(val name: String)
+class Superman(val name: String) {
+  def emitLaser = println(name +" emit a laster!")
 
 }
 
+object TestImp {
+  implicit def man2superman(man: Man): Superman = new Superman(man.name)
 
+}
