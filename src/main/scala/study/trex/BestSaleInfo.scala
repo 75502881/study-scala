@@ -1,4 +1,4 @@
-package study.scala
+package study.trex
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
@@ -15,7 +15,7 @@ import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.functions._
 
-object BestSaleInfo4 {
+object BestSaleInfo {
   def main(args: Array[String]) {
     val spark = SparkSession
       .builder().config("spark.master", "local[*]")
@@ -25,23 +25,61 @@ object BestSaleInfo4 {
 
     import spark.implicits._
     import spark.sql
-    val conditionMap = new scala.collection.mutable.HashMap[String, Array[Any]]
+    val conditionMap = new scala.collection.mutable.HashMap[String, Array[String]]
     conditionMap.put("city", Array("beijing"));
     conditionMap.put("platform", Array("android"));
-    conditionMap.put("version", Array(1.0, 1.5, 2.0));
+    conditionMap.put("version", Array("1.0", "1.2", "1.5", "2.0"));
 
     var queryParamMapBroadcast = spark.sparkContext.broadcast(conditionMap)
 
-    var saleInfoRdd = spark.read.format("com.databricks.spark.csv").option("header", true).option("inferSchema", true).load("hdfs://192.168.31.231:9000/user/root/input/sales.csv")
+    var saleInfoRdd = spark.sparkContext.textFile("hdfs://192.168.31.231:9000/user/root/input/sales.txt", 1)
 
-    
-    
+    //var saleFilterRdd = filterSaleInfo(saleInfoRdd, queryParamMapBroadcast)
     var saleFilterRdd = saleInfoRdd.filter(row => isValidDataRec(row, queryParamMapBroadcast))
 
-    var dateKeywordUserRDD = saleFilterRdd.map(row =>
-      Tuple2(row(0) + "_" + row(2), row(1).toString())).toDF("date_key","name").groupBy("date_key").agg(collect_list("name"))
+    var dateKeywordUserRDD = saleFilterRdd.map(row => {
+      var logSlipted = row.split("\t")
+      Tuple2(logSlipted(0) + "_" + logSlipted(2), logSlipted(1))
+    })
 
-      dateKeywordUserRDD.foreach(f=>println(f.toString()))
+    var dateKeywordUsersRDD = dateKeywordUserRDD.groupByKey()
+
+    var dateKeywordUvRDD = dateKeywordUsersRDD.map(row => {
+      Tuple2(row._1, row._2.toList.distinct.size)
+    })
+
+    println("---------------------------")
+
+    // 将每天每个搜索词的uv数据，转换成DataFrame
+    var dateKeywordUvRowRDD = dateKeywordUvRDD.map(row => {
+      var dateKey = row._1.split("_")
+      Row(dateKey(0), dateKey(1), row._2);
+    })
+
+    dateKeywordUvRowRDD.foreach(row => println(row.toString()))
+
+    // The schema is encoded in a string
+    val schemaString = "date keyword"
+
+    // Generate the schema based on the string of schema
+    val fields = schemaString.split(" ")
+      .map(fieldName => StructField(fieldName, StringType, nullable = true)) :+ StructField("uv", IntegerType, nullable = true)
+
+    val schema = StructType(fields)
+    var dateKeywordUvDF = spark.createDataFrame(dateKeywordUvRowRDD, schema)
+
+    dateKeywordUvDF.createOrReplaceTempView("daily_keyword_uv");
+
+    var dailyTop3KeywordDF = sql("" + "SELECT date,keyword,uv " + "FROM (" + "SELECT " + "date,"
+      + "keyword," + "uv," + "row_number() OVER (PARTITION BY date ORDER BY uv DESC) rank "
+      + "FROM daily_keyword_uv" + ") tmp " + "WHERE rank<=3");
+
+    dailyTop3KeywordDF.printSchema()
+
+    var top3DateKeywordsRDD = dailyTop3KeywordDF.map(row => Tuple2(row.get(0).toString(), row.get(1).toString() + "_" + row.get(2)))
+    .toDF("date", "keyUv").groupBy("date").agg(collect_list("keyUv"))
+    
+    top3DateKeywordsRDD.foreach(f=>println(f.toString()))
   }
 
   def filterSaleInfo(saleInfoRdd: RDD[String], queryParamMapBroadcast: Broadcast[HashMap[String, Array[String]]]): RDD[String] = {
@@ -75,11 +113,11 @@ object BestSaleInfo4 {
     })
   }
 
-  def isValidDataRec(row: Row, queryParamMapBroadcast: Broadcast[HashMap[String, Array[Any]]]) = {
-
-    var city = row(3)
-    var platform = row(4)
-    var version = row(5)
+  def isValidDataRec(row: String, queryParamMapBroadcast: Broadcast[HashMap[String, Array[String]]]) = {
+    var logSlipted = row.split("\t")
+    var city = logSlipted(3)
+    var platform = logSlipted(4)
+    var version = logSlipted(5)
     var queryParamMap = queryParamMapBroadcast.value
 
     row match {

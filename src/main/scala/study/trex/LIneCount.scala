@@ -1,4 +1,4 @@
-package study.scala
+package study.trex
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext

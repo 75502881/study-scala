@@ -1,4 +1,4 @@
-package study.scala
+package study.trex
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
@@ -13,8 +13,9 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.functions._
 
-object BestSaleInfo3 {
+object BestSaleInfo4 {
   def main(args: Array[String]) {
     val spark = SparkSession
       .builder().config("spark.master", "local[*]")
@@ -24,24 +25,23 @@ object BestSaleInfo3 {
 
     import spark.implicits._
     import spark.sql
-    val conditionMap = new scala.collection.mutable.HashMap[String, Array[String]]
+    val conditionMap = new scala.collection.mutable.HashMap[String, Array[Any]]
     conditionMap.put("city", Array("beijing"));
     conditionMap.put("platform", Array("android"));
-    conditionMap.put("version", Array("1.0", "1.5", "2.0"));
+    conditionMap.put("version", Array(1.0, 1.5, 2.0));
 
     var queryParamMapBroadcast = spark.sparkContext.broadcast(conditionMap)
 
-//    var saleInfoRdd = spark.read.csv("hdfs://192.168.31.231:9000/user/root/input/sales.csv")
-    
     var saleInfoRdd = spark.read.format("com.databricks.spark.csv").option("header", true).option("inferSchema", true).load("hdfs://192.168.31.231:9000/user/root/input/sales.csv")
 
-
-    saleInfoRdd.printSchema()
-    //var saleFilterRdd = filterSaleInfo(saleInfoRdd, queryParamMapBroadcast)
+    
+    
     var saleFilterRdd = saleInfoRdd.filter(row => isValidDataRec(row, queryParamMapBroadcast))
 
-   
-    saleFilterRdd.foreach(f=>println(f.toString()))
+    var dateKeywordUserRDD = saleFilterRdd.map(row =>
+      Tuple2(row(0) + "_" + row(2), row(1).toString())).toDF("date_key","name").groupBy("date_key").agg(collect_list("name"))
+
+      dateKeywordUserRDD.foreach(f=>println(f.toString()))
   }
 
   def filterSaleInfo(saleInfoRdd: RDD[String], queryParamMapBroadcast: Broadcast[HashMap[String, Array[String]]]): RDD[String] = {
@@ -75,11 +75,11 @@ object BestSaleInfo3 {
     })
   }
 
-  def isValidDataRec(row: Row, queryParamMapBroadcast: Broadcast[HashMap[String, Array[String]]]) = {
-   
+  def isValidDataRec(row: Row, queryParamMapBroadcast: Broadcast[HashMap[String, Array[Any]]]) = {
+
     var city = row(3)
     var platform = row(4)
-    var version = row(5).toString()
+    var version = row(5)
     var queryParamMap = queryParamMapBroadcast.value
 
     row match {

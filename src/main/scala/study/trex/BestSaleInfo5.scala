@@ -1,4 +1,4 @@
-package study.scala
+package study.trex
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
@@ -15,7 +15,7 @@ import org.apache.spark.sql.types.LongType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.functions._
 
-object BestSaleInfo6 {
+object BestSaleInfo5 {
   def main(args: Array[String]) {
     val spark = SparkSession
       .builder().config("spark.master", "local[*]")
@@ -34,9 +34,25 @@ object BestSaleInfo6 {
 
     var saleInfoRdd = spark.read.format("com.databricks.spark.csv").option("header", true).option("inferSchema", true).load("hdfs://192.168.31.231:9000/user/root/input/sales.csv")
 
+    saleInfoRdd.createOrReplaceTempView("search_info")
+
     var sqlCondition = createSqlCondition(queryParamMapBroadcast)
 
-    saleInfoRdd.where(sqlCondition).groupBy("date", "key").count().foreach(f => println(f.toString()))
+    println("SELECT * FROM search_info  where " + sqlCondition)
+    val saleFilterRdd = spark.sql("SELECT distinct date,name,key FROM search_info  where " + sqlCondition + " order by date ,name")
+
+    var saleGroupRdd = saleFilterRdd.groupBy("date", "key").count
+
+    saleGroupRdd.createOrReplaceTempView("daily_keyword_uv");
+
+    var dailyTop3KeywordDF = sql("" + "SELECT date,key,count " + "FROM (" + "SELECT " + "date,"
+      + "key," + "count," + "row_number() OVER (PARTITION BY date ORDER BY count DESC) rank "
+      + "FROM daily_keyword_uv" + ") tmp " + "WHERE rank<=3");
+
+    dailyTop3KeywordDF.show()
+
+    spark.sql("DROP TABLE IF EXISTS daily_top3_keyword_uv");
+    dailyTop3KeywordDF.write.saveAsTable("daily_top3_keyword_uv");
 
   }
 

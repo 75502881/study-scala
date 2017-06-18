@@ -1,4 +1,4 @@
-package study.scala
+package study.trex
 
 import org.apache.spark.sql.SparkSession
 
