@@ -2,6 +2,7 @@ package study.trex
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
+import study.trex.day.TestObj
 
 /**
  * @author ${user.name}
@@ -9,6 +10,8 @@ import org.apache.spark.SparkContext
 object WordCount {
 
   def main(args: Array[String]) {
+    
+    var obj = TestObj("sds","s")
         var conf = new SparkConf().setAppName("WordCount").setMaster("spark://192.168.31.231:7077")
         var sc = new SparkContext(conf)
         var lines = sc.textFile("hdfs://192.168.31.231:9000/spark.txt", 1)

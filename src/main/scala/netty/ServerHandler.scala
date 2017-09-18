@@ -30,7 +30,7 @@ class ServerHandler extends ChannelInboundHandlerAdapter {
     ctx.write(resp)
   }
 
-  /**
+  /** 
     * 将消息对列中的数据写入到SocketChanne并发送给对方
     */
   override def channelReadComplete(ctx: ChannelHandlerContext): Unit = {
