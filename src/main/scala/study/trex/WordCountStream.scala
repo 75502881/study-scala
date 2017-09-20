@@ -12,7 +12,7 @@ import scalaz.Split
 object WordCountStream {
 
   def main(args: Array[String]) {
-    var conf = new SparkConf().setAppName("WordCount").setMaster("local[*]")
+    var conf = new SparkConf().setAppName("WordCount").setMaster("spark://192.168.31.231:7077")
 
     var scc = new StreamingContext(conf, Seconds(300))
     var lines = scc.socketTextStream("192.168.31.231", 9999)
