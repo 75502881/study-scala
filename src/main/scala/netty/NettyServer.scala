@@ -13,6 +13,7 @@ import io.netty.handler.codec.serialization.{ClassResolvers, ClassResolver, Obje
 class NettyServer {
   def bind(host: String, port: Int): Unit = {
     //配置服务端线程池组
+    //配置服务端线程池组oushuhua1
     //用于服务器接收客户端连接
     val bossGroup = new NioEventLoopGroup()
     //用户进行SocketChannel的网络读写
