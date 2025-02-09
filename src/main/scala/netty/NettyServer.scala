@@ -21,6 +21,7 @@ class NettyServer {
 
     try {
       //是Netty用户启动NIO服务端的辅助启动类，降低服务端的开发复杂度
+      //是Netty用户启动NIO服务端的辅助启动类，降低服务端的开发复杂度
       val bootstrap = new ServerBootstrap()
       //将两个NIO线程组作为参数传入到ServerBootstrap
       bootstrap.group(bossGroup, workerGroup)
