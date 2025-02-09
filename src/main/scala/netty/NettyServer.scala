@@ -28,6 +28,8 @@ class NettyServer {
         //创建NioServerSocketChannel
         .channel(classOf[NioServerSocketChannel])
         //绑定I/O事件处理类
+        //绑定I/O事件处理类
+        //绑定I/O事件处理类
         .childHandler(new ChannelInitializer[SocketChannel] {
         override def initChannel(ch: SocketChannel): Unit = {
           ch.pipeline().addLast(
